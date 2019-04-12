@@ -1,0 +1,11 @@
+This library made for NXP3220 DirectFB 2D accelerator gfxcard 
+
+How to build
+	1. set SDK environments 
+
+	2. configuration with autogen
+		#> ./autogen.sh --host=arm-<xxx>-gnueabihf --prefix=$SDKTARGETSYSROOT/usr
+
+	3. build
+		#> make
+
