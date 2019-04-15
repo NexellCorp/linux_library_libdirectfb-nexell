@@ -26,7 +26,7 @@
 #ifndef _NXP3220_G2D_H_
 #define _NXP3220_G2D_H_
 
-#include "nexell_drm.h"
+#include <nexell_drm.h>
 #include "nexell_debug.h"
 
 #define NX_G2D_DRIVER_VER_MAJOR		1

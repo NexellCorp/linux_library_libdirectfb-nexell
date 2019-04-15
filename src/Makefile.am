@@ -1,11 +1,12 @@
 ## Makefile.am for DirectFB/src/core/gfxcards/nexell
 
 AM_CFLAGS = \
-	$(WARN_CFLAGS)  \
+	$(WARN_CFLAGS) \
+	-I${includedir} \
+	-I${includedir}/nexell \
         -I$(includedir)/directfb \
         -I$(includedir)/directfb-internal \
-	-I${includedir}/libdrm  \
-	-I${includedir}/nexell
+	-I${includedir}/libdrm
 
 nexell_LTLIBRARIES = libdirectfb_nexell.la
 
