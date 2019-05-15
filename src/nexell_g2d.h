@@ -30,7 +30,7 @@
 #include "nexell_debug.h"
 
 #define NX_G2D_DRIVER_VER_MAJOR		1
-#define NX_G2D_DRIVER_VER_MINOR		0
+#define NX_G2D_DRIVER_VER_MINOR		1
 
 #ifndef drm_public
 #  define drm_public

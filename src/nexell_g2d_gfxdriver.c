@@ -630,8 +630,8 @@ driver_get_info(CoreGraphicsDevice *device,
 		DFB_GRAPHICS_DRIVER_INFO_LICENSE_LENGTH,
 		DFB_G2D_DRIVER_LICENSE);
 
-	info->version.major = DFB_G2D_DRIVER_VERSION_MAJOR;
-	info->version.minor = DFB_G2D_DRIVER_VERSION_MINOR;
+	info->version.major = NX_G2D_DRIVER_VER_MAJOR;
+	info->version.minor = NX_G2D_DRIVER_VER_MINOR;
 
 	info->driver_data_size = sizeof(NXG2DDriverData);
 	info->device_data_size = sizeof(NXG2DDeviceData);
