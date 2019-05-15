@@ -39,16 +39,19 @@
 #define DFB_G2D_DRIVER_URL			"nexell.co.kr"
 #define DFB_G2D_DRIVER_LICENSE			"LGPL"
 #define DFB_G2D_DRIVER_VERSION_MAJOR		1
-#define DFB_G2D_DRIVER_VERSION_MINOR		0
+#define DFB_G2D_DRIVER_VERSION_MINOR		1
 
-#define DFB_G2D_SURFACE_BYTEOFFSET_ALIGN	1
-#define DFB_G2D_SURFACE_PIXELPITCH_ALIGN	1
+#define DFB_G2D_SURFACE_BYTEOFFSET_ALIGN	4
+#define DFB_G2D_SURFACE_PIXELPITCH_ALIGN	4
 
 #define NXG2D_FLAGS_OPEN			(1<<0)
 
-/* CAPT: DRAWING: DFXL_NONE, DFXL_FILLRECTANGLE */
+/* CAPT: CCF_CLIPPING, 0 */
+#define NXG2D_SUPPORTED_CARDFLAGS		0
+
+/* CAPT: DRAWING: DFXL_NONE, DFXL_FILLRECTANGLE / DSDRAW_NOFX, DSDRAW_BLEND */
 #define NXG2D_SUPPORTED_DRAWINGFUNCTIONS   \
-		(DFXL_NONE)
+		(DFXL_FILLRECTANGLE)
 #define NXG2D_SUPPORTED_DRAWINGFLAGS	\
 		(DSDRAW_NOFX)
 
@@ -58,13 +61,22 @@
 #define NXG2D_SUPPORTED_BLITTINGFLAGS   \
 		(DSBLIT_NOFX)
 
+typedef enum {
+	DFB_SYSTEM_DRMKMS,
+	DFB_SYSTEM_FBDEV,
+	DFB_SYSTEM_DEVMEM,
+	DFB_SYSTEM_OTHER,
+} DFBSystemType;
+
 typedef struct nx_g2d_image_obj NXG2DImageObject;
+typedef enum nx_g2d_blend_func NXG2DBlendFunction;
 
 typedef struct {
 	NXG2DImageObject source;
 	NXG2DImageObject destination;
-	unsigned int fillcolor;
+	DFBColor color;
 	DFBRegion clip;
+	unsigned int buf_type;
 	/* validation flags */
 	u32 v_flags;
 } NXG2DDeviceData;
@@ -73,6 +85,8 @@ typedef struct {
 	NXG2DDeviceData *dev;
 	DRMKMSData *drmkms;
 	struct nx_g2d_ctx *ctx;
+	DFBSystemType system_type;
+	int drmfd;
 	u32 flags;
 } NXG2DDriverData;
 

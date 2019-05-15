@@ -32,54 +32,6 @@
 
 #include "nexell_g2d.h"
 
-enum nx_g2d_b_rop_mode {
-	GL_BLEND_ROP_CLEAR = 0,
-	GL_BLEND_ROP_NOR = 1,
-	GL_BLEND_ROP_AND_INVERTED = 2,
-	GL_BLEND_ROP_COPY_INVERTED = 3,
-	GL_BLEND_ROP_AND_REVERSE = 4,
-	GL_BLEND_ROP_NOOP = 5,
-	GL_BLEND_ROP_XOR = 6,
-	GL_BLEND_ROP_NAND = 7,
-	GL_BLEND_ROP_AND = 8,
-	GL_BLEND_ROP_EQUIV = 9,
-	GL_BLEND_ROP_INVERT = 10,
-	GL_BLEND_ROP_OR_INVERTED = 11,
-	GL_BLEND_ROP_COPY = 12,
-	GL_BLEND_ROP_OR_REVERSE = 13,
-	GL_BLEND_ROP_OR = 14,
-	GL_BLEND_ROP_SET = 15,
-};
-
-enum nx_g2d_b_dst_alpha {
-	GL_BLEND_ZERO = 0,
-	GL_BLEND_ONE = 1,
-	GL_BLEND_SRC_COLOR = 2,
-	GL_BLEND_ONE_MINUS_SRC_COLOR = 3,
-	GL_BLEND_DST_COLOR = 4,
-	GL_BLEND_ONE_MINUS_DST_COLOR = 5,
-	GL_BLEND_SRC_ALPHA = 6,
-	GL_BLEND_ONE_MINUS_SRC_ALPHA = 7,
-	GL_BLEND_DST_ALPHA = 8,
-	GL_BLEND_ONE_MINUS_DST_ALPHA = 9,
-	GL_BLEND_CONSTANT_COLOR = 10,
-	GL_BLEND_ONE_MINUS_CONSTANT_COLOR = 11,
-	GL_BLEND_CONSTANT_ALPHA = 12,
-	GL_BLEND_ONE_MINUS_CONSTANT_ALPHA = 13,
-	GL_BLEND_SRC_ALPHA_SATURATE = 14,
-};
-
-enum nx_g2d_b_equat_alpha {
-	GL_EQUATION_FUNC_ADD = 0,
-	GL_EQUATION_FUNC_SUB = 1,
-	GL_EQUATION_FUNC_REVERSE_SUB = 2,
-	GL_EQUATION_FUNC_MIN = 3,
-	GL_EQUATION_FUNC_MAX = 4,
-	GL_EQUATION_FUNC_DARKEN = 5,
-	GL_EQUATION_FUNC_LIGHTEN = 6,
-	GL_EQUATION_FUNC_MULTIPLY = 7,
-};
-
 struct nx_g2d_ctx {
 	int fd;
 	int major;
@@ -92,7 +44,7 @@ struct nx_g2d_ctx {
 		(c)->cmd_mask |= BIT(t); \
 	} while (0)
 
-#define	DITHER(v)	(v < 24 ? 1 : 0)
+#define	DITHER_ON(v)	(v < 3 ? true : false)
 
 static void
 g2d_op_initialize(struct nx_g2d_cmd *cmd, struct nx_g2d_image *img)
@@ -106,12 +58,12 @@ g2d_op_initialize(struct nx_g2d_cmd *cmd, struct nx_g2d_image *img)
 	cmd->flags = img->flags;
 
 	/* source buffer */
-	cmd->src.type = src->type;
+	cmd->src.type = src->buf_type;
 	cmd->src.handle = src->handle;
 	cmd->src.offset = src->offset;
 
 	/* destination buffer */
-	cmd->dst.type = dst->type;
+	cmd->dst.type = dst->buf_type;
 	cmd->dst.handle = dst->handle;
 	cmd->dst.offset = dst->offset;
 
@@ -131,7 +83,7 @@ g2d_op_blend_write_mask(struct nx_g2d_cmd *cmd, int wmask)
 
 static void
 g2d_op_blend_rop_mode(struct nx_g2d_cmd *cmd,
-		      enum nx_g2d_b_rop_mode rop, bool enb)
+		      enum nx_g2d_blend_rop_mode rop, bool enb)
 {
 	COMMAND(cmd,
 		BITS((enb ? 1 : 0), 1, 27) |	/* ROP_ENB */
@@ -140,7 +92,7 @@ g2d_op_blend_rop_mode(struct nx_g2d_cmd *cmd,
 }
 
 static void
-g2d_op_blend_alpha(struct nx_g2d_cmd *cmd,
+g2d_op_blend_function(struct nx_g2d_cmd *cmd,
 		int src_rgb, int dst_rgb,
 		int src_alpha, int dst_alpha,
 		int equat_rgb, int equat_alpha)
@@ -185,7 +137,7 @@ g2d_op_src_read_enb(struct nx_g2d_cmd *cmd, bool enb)
 }
 
 static void
-g2d_op_src_alpha(struct nx_g2d_cmd *cmd, int alpha, int enb)
+g2d_op_src_force_alpha(struct nx_g2d_cmd *cmd, int alpha, bool enb)
 {
 	COMMAND(cmd,
 		BITS(enb, 1, 16) |		/* SRC_FORCE_ALPHA_ENB */
@@ -194,8 +146,17 @@ g2d_op_src_alpha(struct nx_g2d_cmd *cmd, int alpha, int enb)
 }
 
 static void
-g2d_op_src_image(struct nx_g2d_cmd *cmd, int width, int pitch,
-		 int pixelorder, int pixelformat, int pixelbyte)
+g2d_op_src_image_format(struct nx_g2d_cmd *cmd, int pixelorder, int pixelformat)
+{
+	COMMAND(cmd,
+		BITS(pixelorder, 2, 4) |	/* SRC_COLOR_ORDER */
+		BITS(pixelformat, 4, 0),	/* SRC_COLOR_FMT */
+		NX_G2D_CMD_SRC_CTRL);
+}
+
+static void
+g2d_op_src_image_size(struct nx_g2d_cmd *cmd, int width, int pitch,
+		      int pixelbyte)
 {
 	COMMAND(cmd,
 		pitch,				/* SRC_STRIDE */
@@ -203,10 +164,6 @@ g2d_op_src_image(struct nx_g2d_cmd *cmd, int width, int pitch,
 	COMMAND(cmd,
 		(width * pixelbyte),		/* SRC_BLKSIZE */
 		NX_G2D_CMD_SRC_BLKSIZE);
-	COMMAND(cmd,
-		BITS(pixelorder, 2, 4) |	/* SRC_COLOR_ORDER */
-		BITS(pixelformat, 4, 0),	/* SRC_COLOR_FMT */
-		NX_G2D_CMD_SRC_CTRL);
 }
 
 static void
@@ -218,7 +175,7 @@ g2d_op_dst_read_enb(struct nx_g2d_cmd *cmd, bool enb)
 }
 
 static void
-g2d_op_dst_dither(struct nx_g2d_cmd *cmd, int x_offs, int y_offs, int enb)
+g2d_op_dst_dither(struct nx_g2d_cmd *cmd, int x_offs, int y_offs, bool enb)
 {
 	COMMAND(cmd,
 		BITS(x_offs, 2, 10) |		/* DITER_X_OFFSET */
@@ -228,8 +185,17 @@ g2d_op_dst_dither(struct nx_g2d_cmd *cmd, int x_offs, int y_offs, int enb)
 }
 
 static void
-g2d_op_dst_image(struct nx_g2d_cmd *cmd, int width, int pitch,
-		 int pixelorder, int pixelformat, int pixelbyte)
+g2d_op_dst_image_format(struct nx_g2d_cmd *cmd, int pixelorder, int pixelformat)
+{
+	COMMAND(cmd,
+		BITS(pixelorder, 2, 4) |	/* DST_COLOR_ORDER */
+		BITS(pixelformat, 4, 0),	/* DST_COLOR_FMT */
+		NX_G2D_CMD_DST_CTRL);
+}
+
+static void
+g2d_op_dst_image_size(struct nx_g2d_cmd *cmd, int width, int pitch,
+		      int pixelbyte)
 {
 	COMMAND(cmd,
 		pitch,				/* DST_STRIDE */
@@ -237,10 +203,6 @@ g2d_op_dst_image(struct nx_g2d_cmd *cmd, int width, int pitch,
 	COMMAND(cmd,
 		(width * pixelbyte),		/* DST_BLKSIZE */
 		NX_G2D_CMD_DST_BLKSIZE);
-	COMMAND(cmd,
-		BITS(pixelorder, 2, 4) |	/* DST_COLOR_ORDER */
-		BITS(pixelformat, 4, 0),	/* DST_COLOR_FMT */
-		NX_G2D_CMD_DST_CTRL);
 }
 
 static void
@@ -259,8 +221,6 @@ g2d_submit(struct nx_g2d_ctx *ctx, struct nx_g2d_cmd *cmd)
 {
 	struct nx_g2d_cmd arg = *cmd;
 	int ret;
-
-	COMMAND(&arg, 1, NX_G2D_CMD_RUN);
 
 	ret = drmIoctl(ctx->fd, DRM_IOCTL_NX_G2D_DMA_EXEC, &arg);
 	if (ret < 0) {
@@ -344,24 +304,36 @@ drm_public
 int nexell_g2d_fillrect(struct nx_g2d_ctx *ctx, struct nx_g2d_image *img)
 {
 	struct nx_g2d_cmd *cmd = &ctx->cmd;
+	struct nx_g2d_image_obj *src = &img->src;
 	struct nx_g2d_image_obj *dst = &img->dst;
+	unsigned int solidcolor = ARGB_COLOR(img->color.a,
+					img->color.r,
+					img->color.g,
+					img->color.b);
+
+	/* clear source buffer type */
+	src->buf_type = NX_G2D_BUF_TYPE_NONE;
 
 	g2d_op_initialize(cmd, img);
 
 	g2d_op_blend_write_mask(cmd, 0xf);
 	g2d_op_blend_rop_mode(cmd, 0, false);
+
+	/* must be false */
 	g2d_op_blend_color(cmd, img->blendcolor, false);
 
 	g2d_op_image_size(cmd, img->width, img->height);
-	g2d_op_solid_color(cmd, img->fillcolor, true);
+	g2d_op_solid_color(cmd, solidcolor, true);
 
+	/* set with destination format to source format */
+	g2d_op_src_image_format(cmd, dst->pixelorder, dst->pixelformat);
+	g2d_op_src_force_alpha(cmd, 0, false);
 	g2d_op_src_read_enb(cmd, false);
 
-	g2d_op_dst_image(cmd, img->width, dst->pitch,
-			dst->pixelorder, dst->pixelformat,
-			dst->pixelbyte);
+	g2d_op_dst_image_format(cmd, dst->pixelorder, dst->pixelformat);
+	g2d_op_dst_image_size(cmd, img->width, dst->pitch, dst->pixelbyte);
+	g2d_op_dst_dither(cmd, 0, 0, DITHER_ON(img->dst.pixelbyte));
 	g2d_op_dst_read_enb(cmd, false);
-	g2d_op_dst_dither(cmd, 0, 0, DITHER(img->dst.pixelbyte));
 
 	return g2d_submit(ctx, cmd);
 }
@@ -373,39 +345,37 @@ nexell_g2d_blit(struct nx_g2d_ctx *ctx, struct nx_g2d_image *img)
 	struct nx_g2d_image_obj *src = &img->src;
 	struct nx_g2d_image_obj *dst = &img->dst;
 
-	int src_rgb = GL_BLEND_SRC_ALPHA;
-	int dst_rgb = GL_BLEND_ONE_MINUS_SRC_ALPHA;
-	int src_alpha = GL_BLEND_SRC_ALPHA;
-	int dst_alpha = GL_BLEND_ONE_MINUS_SRC_ALPHA;
-	int equat_rgb = GL_EQUATION_FUNC_ADD;
-	int equat_alpha = GL_EQUATION_FUNC_ADD;
+	int src_rgb = src->blend_func;
+	int dst_rgb = dst->blend_func;
+	int src_alpha = src->blend_func;
+	int dst_alpha = dst->blend_func;
+	int equat_rgb = GL_BLEND_EQUAT_FUNC_ADD;
+	int equat_alpha = GL_BLEND_EQUAT_FUNC_ADD;
 
 	g2d_op_initialize(cmd, img);
 
 	g2d_op_blend_write_mask(cmd, 0xf);
 	g2d_op_blend_rop_mode(cmd, 0, false);
-	g2d_op_blend_alpha(cmd,
+	g2d_op_blend_function(cmd,
 			src_rgb, dst_rgb,
 			src_alpha, dst_alpha,
 			equat_rgb, equat_alpha);
-	g2d_op_blend_color(cmd, img->blendcolor, false); /* true */
+	g2d_op_blend_color(cmd, img->blendcolor, true); /* true */
 
 	g2d_op_image_size(cmd, img->width, img->height);
 
 	/* must be set false */
-	g2d_op_solid_color(cmd, img->fillcolor, false);
+	g2d_op_solid_color(cmd, 0, false);
 
-	g2d_op_src_image(cmd, img->width, src->pitch,
-			 src->pixelorder, src->pixelformat,
-			 src->pixelbyte);
-	g2d_op_src_alpha(cmd, 0, 0);
+	g2d_op_src_image_format(cmd, src->pixelorder, src->pixelformat);
+	g2d_op_src_image_size(cmd, img->width, src->pitch, src->pixelbyte);
+	g2d_op_src_force_alpha(cmd, 0, false);
 	g2d_op_src_read_enb(cmd, true);
 
-	g2d_op_dst_image(cmd, img->width, dst->pitch,
-			 dst->pixelorder, dst->pixelformat,
-			 dst->pixelbyte);
-	g2d_op_dst_read_enb(cmd, false);
-	g2d_op_dst_dither(cmd, 0, 0, DITHER(img->dst.pixelbyte));
+	g2d_op_dst_image_format(cmd, dst->pixelorder, dst->pixelformat);
+	g2d_op_dst_image_size(cmd, img->width, dst->pitch, dst->pixelbyte);
+	g2d_op_dst_dither(cmd, 0, 0, DITHER_ON(img->dst.pixelbyte));
+	g2d_op_dst_read_enb(cmd, true);
 
 	return g2d_submit(ctx, cmd);
 }
