@@ -271,10 +271,10 @@ struct nx_g2d_ctx *nexell_g2d_alloc(int fd, int *major, int *minor)
 	int ret;
 
 	ret = g2d_get_ver(fd, &ver);
-	if (ret || ver.major != NX_G2D_DRIVER_VER_MAJOR) {
+	if (ret || ver.major != NX_G2D_DRIVER_VERSION_MAJOR) {
 		D_ERROR("%s() Not Support VERSION GFX:%d-%d, DRIVER:%d-%d\n",
 			__func__,
-			NX_G2D_DRIVER_VER_MAJOR, NX_G2D_DRIVER_VER_MINOR,
+			NX_G2D_DRIVER_VERSION_MAJOR, NX_G2D_DRIVER_VERSION_MINOR,
 			ver.major, ver.minor);
 		return NULL;
 	}
