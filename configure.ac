@@ -15,13 +15,26 @@ AC_PROG_CC
 
 # Checks for header files.
 
-# Initialize libtool                                                            
+# Initialize libtool
 LT_PREREQ([2.2])
 LT_INIT
 
 # Checks for typedefs, structures, and compiler characteristics.
 
 # Checks for library functions.
+
+# Set options
+AC_ARG_ENABLE(debug,
+              AC_HELP_STRING([--enable-debug],
+                             [enable debugging @<:@default=no@:>@]),
+              [], [enable_debug=no])
+if test "$enable_debug" = "yes"; then
+    CFLAGS="-g3 -O0 -fno-inline -Wno-inline $CFLAGS"
+    DIRECT_BUILD_DEBUG=1
+else
+    DIRECT_BUILD_DEBUG=0
+fi
+AM_CONDITIONAL(ENABLE_DEBUG, test "$enable_debug" = "yes")
 
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_OUTPUT
