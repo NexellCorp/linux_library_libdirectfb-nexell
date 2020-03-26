@@ -46,6 +46,17 @@ struct nx_g2d_ctx {
 
 #define	DITHER_ON(v)	(v < 3 ? true : false)
 
+#ifdef DRM_IOCTL_NX_G2D_EXEC
+#define DRM_IOCTL_EXEC	DRM_IOCTL_NX_G2D_EXEC
+#else
+#define DRM_IOCTL_EXEC	DRM_IOCTL_NX_G2D_DMA_EXEC
+#endif
+#ifdef DRM_IOCTL_NX_G2D_SYNC
+#define DRM_IOCTL_SYNC	DRM_IOCTL_NX_G2D_SYNC
+#else
+#define DRM_IOCTL_SYNC	DRM_IOCTL_NX_G2D_DMA_SYNC
+#endif
+
 static void
 g2d_op_initialize(struct nx_g2d_cmd *cmd, struct nx_g2d_image *img)
 {
@@ -222,9 +233,9 @@ g2d_submit(struct nx_g2d_ctx *ctx, struct nx_g2d_cmd *cmd)
 	struct nx_g2d_cmd arg = *cmd;
 	int ret;
 
-	ret = drmIoctl(ctx->fd, DRM_IOCTL_NX_G2D_DMA_EXEC, &arg);
+	ret = drmIoctl(ctx->fd, DRM_IOCTL_EXEC, &arg);
 	if (ret < 0) {
-		D_ERROR("%s() Failed DRM_IOCTL_NX_G2D_DMA_EXEC\n", __func__);
+		D_ERROR("%s() Failed DRM_IOCTL_EXEC\n", __func__);
 		return ret;
 	}
 
@@ -237,9 +248,9 @@ g2d_sync(struct nx_g2d_ctx *ctx, struct nx_g2d_cmd *cmd)
 	struct nx_g2d_cmd arg = *cmd;
 	int ret;
 
-	ret = drmIoctl(ctx->fd, DRM_IOCTL_NX_G2D_DMA_SYNC, &cmd);
+	ret = drmIoctl(ctx->fd, DRM_IOCTL_SYNC, &cmd);
 	if (ret < 0) {
-		D_ERROR("%s() Failed DRM_IOCTL_NX_G2D_DMA_SYNC\n", __func__);
+		D_ERROR("%s() Failed DRM_IOCTL_SYNC\n", __func__);
 		return ret;
 	}
 
