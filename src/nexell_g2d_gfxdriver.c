@@ -29,9 +29,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <directfb.h>
+
 #include <core/system.h>
+#include <core/Debug.h>
 #include <gfx/convert.h>
 #include <drmkms_system/drmkms_system.h>
 
@@ -287,8 +288,9 @@ nxCheckState(void *drv,
 	int i;
 
 	D_DEBUG_AT(NEXELL_2D,
-		"%s() accel:0x%x(state:0x%x), drawing:0x%x, blitting:0x%x\n",
-		__FUNCTION__, accel, state->accel,
+		"%s() accel:0x%x:%s (state:0x%x:%s), drawing:0x%x, blitting:0x%x\n",
+		__FUNCTION__, accel, ToString_DFBAccelerationMask(accel),
+		state->accel, ToString_DFBAccelerationMask(state->accel),
 		state->drawingflags, state->blittingflags);
 	D_DEBUG_AT(NEXELL_2D, "%s() %s: format:%s -> %s\n",
 		__FUNCTION__, DFB_DRAWING_FUNCTION(accel) ? "DRAW" : "BLIT",
@@ -325,8 +327,9 @@ nxCheckState(void *drv,
 		return;
 
 	if (!(accel & ~NXG2D_SUPPORTED_DRAWINGFUNCTIONS) &&
-	    !(state->drawingflags & ~NXG2D_SUPPORTED_DRAWINGFLAGS))
+	    !(state->drawingflags & ~NXG2D_SUPPORTED_DRAWINGFLAGS)) {
 		state->accel |= NXG2D_SUPPORTED_DRAWINGFUNCTIONS;
+	}
 
 	if (!(accel & ~NXG2D_SUPPORTED_BLITTINGFUNCTIONS) &&
 	    !(state->blittingflags & ~NXG2D_SUPPORTED_BLITTINGFLAGS)) {
@@ -334,8 +337,10 @@ nxCheckState(void *drv,
 			state->accel |= NXG2D_SUPPORTED_BLITTINGFUNCTIONS;
 	}
 
-	D_DEBUG_AT(NEXELL_2D, "%s() accel:0x%x(state:0x%x), %s\n",
-		__FUNCTION__, accel, state->accel, state->accel ? "G2D" : "SW");
+	D_DEBUG_AT(NEXELL_2D, "%s() %s:0x%x:%s (state:0x%x:%s)\n",
+		__FUNCTION__, state->accel ? "HARD " : "SOFT ",
+		accel, ToString_DFBAccelerationMask(accel),
+		state->accel, ToString_DFBAccelerationMask(state->accel));
 }
 
 static void
@@ -349,8 +354,10 @@ nxSetState(void *drv,
 	NXG2DDeviceData *nxdev = (NXG2DDeviceData *)dev;
 	StateModificationFlags modified = state->mod_hw;
 
-	D_DEBUG_AT(NEXELL_2D, "%s() accel:0x%x(0x%x), modified:0x%x\n",
-		__FUNCTION__, accel, state->accel, modified);
+	D_DEBUG_AT(NEXELL_2D, "%s() accel:0x%x:%s (state:0x%x:%s), modified:0x%x\n",
+		__FUNCTION__, accel, ToString_DFBAccelerationMask(accel),
+		state->accel, ToString_DFBAccelerationMask(state->accel),
+		modified);
 	D_DEBUG_AT(NEXELL_2D, "%s() blitting:0x%x, ROP:0x%x\n",
 		__FUNCTION__, state->blittingflags, state->render_options);
 
@@ -661,6 +668,7 @@ driver_init_driver(CoreGraphicsDevice *device,
 	funcs->SetState         = nxSetState;
 	funcs->FillRectangle    = nxFillRectangle;
 	funcs->Blit             = nxBlit;
+	funcs->EngineSync	= nxEngineSync;
 
 	return DFB_OK;
 }
