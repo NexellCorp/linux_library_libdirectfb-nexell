@@ -281,6 +281,7 @@ nxCheckState(void *drv,
 	     CardState *state,
 	     DFBAccelerationMask accel)
 {
+	NXG2DDeviceData *nxdev = (NXG2DDeviceData *)dev;
 	DFBSurfacePixelFormat dst_format = state->destination->config.format;
 	DFBSurfacePixelFormat src_format =
 		DFB_BLITTING_FUNCTION(accel) ? state->source->config.format : DSPF_UNKNOWN;
@@ -326,15 +327,15 @@ nxCheckState(void *drv,
 	if (i == DFB_SUPPORT_FORMAT_SIZE)
 		return;
 
-	if (!(accel & ~NXG2D_SUPPORTED_DRAWINGFUNCTIONS) &&
+	if (!(accel & ~nxdev->accel_draw) &&
 	    !(state->drawingflags & ~NXG2D_SUPPORTED_DRAWINGFLAGS)) {
-		state->accel |= NXG2D_SUPPORTED_DRAWINGFUNCTIONS;
+		state->accel |= nxdev->accel_draw;
 	}
 
-	if (!(accel & ~NXG2D_SUPPORTED_BLITTINGFUNCTIONS) &&
+	if (!(accel & ~nxdev->accel_blit) &&
 	    !(state->blittingflags & ~NXG2D_SUPPORTED_BLITTINGFLAGS)) {
 		if (state->source->config.format == state->destination->config.format)
-			state->accel |= NXG2D_SUPPORTED_BLITTINGFUNCTIONS;
+			state->accel |= nxdev->accel_blit;
 	}
 
 	D_DEBUG_AT(NEXELL_2D, "%s() %s:0x%x:%s (state:0x%x:%s)\n",
@@ -570,6 +571,19 @@ nxOpen(CoreGraphicsDevice *device,
 		fd = nxdrv->drmfd;
 	}
 
+	if (direct_config_get("hw-support-accel-draw", &option, 1, &ret) == DR_OK)
+		nxdev->accel_draw |= strtol(option, NULL, 16);
+	else
+		nxdev->accel_draw |= NXG2D_SUPPORTED_DRAWINGFUNCTIONS;
+
+	if (direct_config_get("hw-support-accel-blit", &option, 1, &ret) == DR_OK)
+		nxdev->accel_blit |= strtol(option, NULL, 16);
+	else
+		nxdev->accel_blit |= NXG2D_SUPPORTED_BLITTINGFUNCTIONS;
+
+	nxdev->accel_draw &= NXG2D_SUPPORTED_DRAWINGFUNCTIONS;
+	nxdev->accel_blit &= NXG2D_SUPPORTED_BLITTINGFUNCTIONS;
+
 	if (direct_config_get("hw-exec-wait-sync", &option, 1, &ret) == DR_OK)
 		flags |= G2D_OPT_EXEC_SYNC;
 
@@ -577,10 +591,10 @@ nxOpen(CoreGraphicsDevice *device,
 	if (!nxdrv->ctx)
 		return DFB_IO;
 
-	D_INFO("%s VERSION GFX:%d-%d, DRIVER:%d-%d, CMD: %s\n",
+	D_INFO("%s VERSION GFX:%d-%d, DRIVER:%d-%d, Accel:0x%x, CMD: %s\n",
 		DFB_G2D_DRIVER_NAME,
 		NX_G2D_DRIVER_VERSION_MAJOR, NX_G2D_DRIVER_VERSION_MINOR,
-		major, minor,
+		major, minor, nxdev->accel_draw | nxdev->accel_blit,
 		flags & G2D_OPT_EXEC_SYNC ? "Exce/Sync" : "Exec");
 
 	D_FLAGS_SET(nxdrv->flags, NXG2D_FLAGS_OPEN);
@@ -700,8 +714,7 @@ driver_init_device(CoreGraphicsDevice *device,
 		 DFB_G2D_DRIVER_VENDOR);
 
 	device_info->caps.flags = NXG2D_SUPPORTED_CARDFLAGS;
-	device_info->caps.accel = NXG2D_SUPPORTED_DRAWINGFUNCTIONS |
-					NXG2D_SUPPORTED_BLITTINGFUNCTIONS;
+	device_info->caps.accel = nxdev->accel_draw | nxdev->accel_blit;
 	device_info->caps.drawing = NXG2D_SUPPORTED_DRAWINGFLAGS;
 	device_info->caps.blitting = NXG2D_SUPPORTED_BLITTINGFLAGS;
 
