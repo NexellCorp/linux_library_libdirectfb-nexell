@@ -32,22 +32,12 @@
 
 #include "nexell_g2d.h"
 
-#ifdef DRM_IOCTL_NX_G2D_EXEC
-#define DRM_IOCTL_EXEC	DRM_IOCTL_NX_G2D_EXEC
-#else
-#define DRM_IOCTL_EXEC	DRM_IOCTL_NX_G2D_DMA_EXEC
-#endif
-#ifdef DRM_IOCTL_NX_G2D_SYNC
-#define DRM_IOCTL_SYNC	DRM_IOCTL_NX_G2D_SYNC
-#else
-#define DRM_IOCTL_SYNC	DRM_IOCTL_NX_G2D_DMA_SYNC
-#endif
-
 struct nx_g2d_ctx {
 	int fd;
 	int major;
 	int minor;
 	struct nx_g2d_cmd cmd;
+	unsigned int flags;
 };
 
 #define	COMMAND(c, v, t) do { \
@@ -233,7 +223,10 @@ g2d_submit(struct nx_g2d_ctx *ctx, struct nx_g2d_cmd *cmd)
 	struct nx_g2d_cmd arg = *cmd;
 	int ret;
 
-	ret = drmIoctl(ctx->fd, DRM_IOCTL_EXEC, &arg);
+	ret = drmIoctl(ctx->fd,
+			ctx->flags & G2D_OPT_EXEC_SYNC ?
+			DRM_IOCTL_EXEC_SYNC : DRM_IOCTL_EXEC,
+			&arg);
 	if (ret < 0) {
 		D_ERROR("%s() Failed DRM_IOCTL_EXEC\n", __func__);
 		return ret;
@@ -247,6 +240,9 @@ g2d_sync(struct nx_g2d_ctx *ctx, struct nx_g2d_cmd *cmd)
 {
 	struct nx_g2d_cmd arg = *cmd;
 	int ret;
+
+	if (ctx->flags & G2D_OPT_EXEC_SYNC)
+		return 0;
 
 	ret = drmIoctl(ctx->fd, DRM_IOCTL_SYNC, &cmd);
 	if (ret < 0) {
@@ -275,7 +271,8 @@ g2d_get_ver(int fd, struct nx_g2d_ver *ver)
 }
 
 drm_public
-struct nx_g2d_ctx *nexell_g2d_alloc(int fd, int *major, int *minor)
+struct nx_g2d_ctx *nexell_g2d_alloc(int fd, int *major, int *minor,
+				    unsigned int flags)
 {
 	struct nx_g2d_ctx *ctx;
 	struct nx_g2d_ver ver = { 0 };
@@ -295,6 +292,7 @@ struct nx_g2d_ctx *nexell_g2d_alloc(int fd, int *major, int *minor)
 		return NULL;
 
 	ctx->fd = fd;
+	ctx->flags = flags;
 
 	if (major)
 		*major = ver.major;

@@ -535,7 +535,9 @@ nxOpen(CoreGraphicsDevice *device,
 	NXG2DDriverData *nxdrv)
 {
 	NXG2DDeviceData *nxdev = nxdrv->dev;
+	char *option = NULL;
 	int fd, major, minor;
+	unsigned int flags = 0;
 	int ret;
 
 	D_DEBUG_AT(NEXELL_2D, "%s() %s\n", __FUNCTION__, dfb_config->system);
@@ -568,14 +570,18 @@ nxOpen(CoreGraphicsDevice *device,
 		fd = nxdrv->drmfd;
 	}
 
-	nxdrv->ctx = nexell_g2d_alloc(fd, &major, &minor);
+	if (direct_config_get("hw-exec-wait-sync", &option, 1, &ret) == DR_OK)
+		flags |= G2D_OPT_EXEC_SYNC;
+
+	nxdrv->ctx = nexell_g2d_alloc(fd, &major, &minor, flags);
 	if (!nxdrv->ctx)
 		return DFB_IO;
 
-	D_INFO("%s VERSION GFX:%d-%d, DRIVER:%d-%d\n",
+	D_INFO("%s VERSION GFX:%d-%d, DRIVER:%d-%d, CMD: %s\n",
 		DFB_G2D_DRIVER_NAME,
 		NX_G2D_DRIVER_VERSION_MAJOR, NX_G2D_DRIVER_VERSION_MINOR,
-		major, minor);
+		major, minor,
+		flags & G2D_OPT_EXEC_SYNC ? "Exce/Sync" : "Exec");
 
 	D_FLAGS_SET(nxdrv->flags, NXG2D_FLAGS_OPEN);
 

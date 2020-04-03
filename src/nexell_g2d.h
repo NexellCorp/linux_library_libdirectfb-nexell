@@ -148,9 +148,30 @@ struct nx_g2d_image {
 	(b & 0xff) \
 	)
 
+/* G2D IoCtl */
+#ifndef DRM_NX_G2D_EXEC_SYNC
+#define DRM_NX_G2D_EXEC_SYNC            0x13
+#define NX_IOWR(c, t)   DRM_IOWR(DRM_COMMAND_BASE + c, t)
+#define DRM_IOCTL_NX_G2D_EXEC_SYNC \
+	NX_IOWR(DRM_NX_G2D_EXEC_SYNC, struct nx_g2d_cmd)
+
+#define DRM_IOCTL_EXEC		DRM_IOCTL_NX_G2D_DMA_EXEC
+#define DRM_IOCTL_SYNC		DRM_IOCTL_NX_G2D_DMA_SYNC
+#define DRM_IOCTL_EXEC_SYNC	DRM_IOCTL_NX_G2D_EXEC_SYNC
+#else
+#define DRM_IOCTL_EXEC		DRM_IOCTL_NX_G2D_EXEC
+#define DRM_IOCTL_SYNC		DRM_IOCTL_NX_G2D_SYNC
+#define DRM_IOCTL_EXEC_SYNC	DRM_IOCTL_NX_G2D_EXEC_SYNC
+#endif
+
+/* G2D options */
+#define G2D_OPT_EXEC_SYNC	(1 << 0)
+
+/* G2D prototypes */
 struct nx_g2d_ctx;
 
-struct nx_g2d_ctx *nexell_g2d_alloc(int fd, int *major, int *minor);
+struct nx_g2d_ctx *nexell_g2d_alloc(int fd, int *major, int *minor,
+				    unsigned int flags);
 void nexell_g2d_free(struct nx_g2d_ctx *ctx);
 
 int nexell_g2d_fillrect(struct nx_g2d_ctx *ctx, struct nx_g2d_image *img);
