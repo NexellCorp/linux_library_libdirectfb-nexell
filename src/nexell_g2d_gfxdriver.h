@@ -75,6 +75,8 @@ typedef struct {
 	DFBColor color;
 	DFBRegion clip;
 	unsigned int buf_type;
+	DFBAccelerationMask accel_draw;
+	DFBAccelerationMask accel_blit;
 	/* validation flags */
 	u32 v_flags;
 } NXG2DDeviceData;
